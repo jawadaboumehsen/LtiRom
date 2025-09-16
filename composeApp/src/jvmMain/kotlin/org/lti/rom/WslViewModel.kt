@@ -132,24 +132,28 @@ class WslViewModel : ViewModel() {
             _errorMessage.value = ""
             
             try {
-                // Always use direct WSL command execution for now, since SSH is not properly set up
-                println("🔍 [DEBUG] Using direct WSL command execution")
-                val result = wslService.executeWslCommand(command)
-                
+                val result = if (_isConnected.value) {
+                    println("🔍 [DEBUG] Using SSH command execution")
+                    wslService.executeCommand(command)
+                } else {
+                    println("🔍 [DEBUG] Using direct WSL command execution")
+                    wslService.executeWslCommand(command)
+                }
+
                 println("🔍 [DEBUG] Command execution result - Success: ${result.success}, Exit Code: ${result.exitCode}")
                 println("🔍 [DEBUG] Command output: '${result.output}'")
                 println("🔍 [DEBUG] Command error: '${result.error}'")
-                
+
                 val outputText = if (result.success) {
                     result.output
                 } else {
                     "Error: ${result.error}\nExit code: ${result.exitCode}"
                 }
-                
+
                 println("🔍 [DEBUG] Setting commandOutput to: '$outputText'")
                 _commandOutput.value = outputText
                 println("🔍 [DEBUG] commandOutput state updated, current value: '${_commandOutput.value}'")
-                
+
                 if (!result.success) {
                     println("❌ [DEBUG] Command failed with exit code ${result.exitCode}")
                     _errorMessage.value = "Command failed with exit code ${result.exitCode}"

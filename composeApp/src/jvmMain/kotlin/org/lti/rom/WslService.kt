@@ -28,47 +28,72 @@ class WslService {
     )
     
     suspend fun connect(connection: WslConnection): Boolean = withContext(Dispatchers.IO) {
+        println("🔍 [DEBUG] Attempting to connect to ${connection.username}@${connection.host}:${connection.port}")
         try {
             session = jsch.getSession(connection.username, connection.host, connection.port)
             session?.setConfig("StrictHostKeyChecking", "no")
-            
+
             if (connection.useKeyAuth && connection.keyPath.isNotEmpty()) {
+                println("🔍 [DEBUG] Using key authentication with key: ${connection.keyPath}")
                 jsch.addIdentity(connection.keyPath)
             } else {
+                println("🔍 [DEBUG] Using password authentication")
                 session?.setPassword(connection.password)
             }
-            
+
             session?.connect(5000)
-            session?.isConnected == true
+            val isConnected = session?.isConnected == true
+            if (isConnected) {
+                println("✅ [DEBUG] SSH connection successful")
+            } else {
+                println("❌ [DEBUG] SSH connection failed")
+            }
+            isConnected
+        } catch (e: JSchException) {
+            println("❌ [DEBUG] SSH connection failed: ${e.message}")
+            false
         } catch (e: Exception) {
-            println("WSL connection failed: ${e.message}")
+            println("❌ [DEBUG] An unexpected error occurred during connection: ${e.message}")
             false
         }
     }
-    
+
     suspend fun executeCommand(command: String): CommandResult = withContext(Dispatchers.IO) {
+        println("🔍 [DEBUG] Executing SSH command: '$command'")
+        var channel: ChannelExec? = null
         try {
             if (session?.isConnected != true) {
-                return@withContext CommandResult("", "Not connected to WSL", -1, false)
+                return@withContext CommandResult("", "Not connected to WSL via SSH", -1, false)
             }
+
+            channel = session?.openChannel("exec") as ChannelExec
+            channel.setCommand(command)
             
-            channel = session?.openChannel("exec")
-            val execChannel = channel as ChannelExec
-            execChannel.setCommand(command)
+            val inputStream = channel.inputStream
+            val errorStream = channel.errStream
             
-            val inputStream = execChannel.inputStream
-            val errorStream = execChannel.errStream
-            
-            execChannel.connect()
+            channel.connect()
             
             val output = inputStream.bufferedReader().readText()
             val error = errorStream.bufferedReader().readText()
             
-            execChannel.disconnect()
-            
-            CommandResult(output, error, execChannel.exitStatus, execChannel.exitStatus == 0)
+            // Wait for the command to finish
+            while (channel.exitStatus == -1) {
+                delay(100)
+            }
+
+            val exitCode = channel.exitStatus
+            println("✅ [DEBUG] SSH command executed with exit code: $exitCode")
+
+            CommandResult(output, error, exitCode, exitCode == 0)
+        } catch (e: JSchException) {
+            println("❌ [DEBUG] SSH command execution failed: ${e.message}")
+            CommandResult("", "SSH command execution failed: ${e.message}", -1, false)
         } catch (e: Exception) {
-            CommandResult("", "Command execution failed: ${e.message}", -1, false)
+            println("❌ [DEBUG] An unexpected error occurred during command execution: ${e.message}")
+            CommandResult("", "An unexpected error occurred during command execution: ${e.message}", -1, false)
+        } finally {
+            channel?.disconnect()
         }
     }
     
