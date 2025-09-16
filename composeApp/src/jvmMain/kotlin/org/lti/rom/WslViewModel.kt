@@ -29,6 +29,65 @@ class WslViewModel(private val wslService: WslService = WslService()) : ViewMode
     
     private val _currentDirectory = MutableStateFlow("/home/username")
     val currentDirectory: StateFlow<String> = _currentDirectory.asStateFlow()
+
+    private val _gitRepoUrl = MutableStateFlow("")
+    val gitRepoUrl: StateFlow<String> = _gitRepoUrl.asStateFlow()
+
+    private val _gitBranch = MutableStateFlow("main")
+    val gitBranch: StateFlow<String> = _gitBranch.asStateFlow()
+
+    private val _repoStatus = MutableStateFlow("")
+    val repoStatus: StateFlow<String> = _repoStatus.asStateFlow()
+
+    fun onGitRepoUrlChange(url: String) {
+        _gitRepoUrl.value = url
+    }
+
+    fun onGitBranchChange(branch: String) {
+        _gitBranch.value = branch
+    }
+
+    fun checkAndCloneRepository() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _repoStatus.value = "Checking repository..."
+            try {
+                val isRepo = wslService.checkGitRepository(_currentDirectory.value)
+                if (isRepo) {
+                    _repoStatus.value = "Repository found. Checking submodules..."
+                    val submodulesOk = wslService.checkSubmodules(_currentDirectory.value)
+                    if (submodulesOk) {
+                        _repoStatus.value = "Repository is ready."
+                    } else {
+                        _repoStatus.value = "Submodules not initialized. Initializing..."
+                        val result = wslService.initializeSubmodules(_currentDirectory.value)
+                        if (result.success) {
+                            _repoStatus.value = "Submodules initialized successfully."
+                        } else {
+                            _repoStatus.value = "Failed to initialize submodules: ${result.error}"
+                        }
+                    }
+                } else {
+                    _repoStatus.value = "No repository found. Cloning..."
+                    val result = wslService.cloneRepository(
+                        _gitRepoUrl.value,
+                        _gitBranch.value,
+                        _currentDirectory.value
+                    )
+                    if (result.success) {
+                        _repoStatus.value = "Repository cloned successfully."
+                    } else {
+                        _repoStatus.value = "Failed to clone repository: ${result.error}"
+                    }
+                }
+            } catch (e: Exception) {
+                Napier.e("Error checking/cloning repository", throwable = e)
+                _repoStatus.value = "Error: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
     
     init {
         checkWslAvailability()

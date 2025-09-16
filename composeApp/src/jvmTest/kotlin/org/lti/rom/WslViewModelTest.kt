@@ -86,4 +86,44 @@ class WslViewModelTest {
         assertEquals(selectedPath, viewModel.currentDirectory.value)
         assertFalse(viewModel.fileBrowserState.value.isOpen)
     }
+
+    @Test
+    fun `checkAndCloneRepository should do nothing if repo is ready`() = runTest {
+        // Given
+        coEvery { wslService.checkGitRepository(any()) } returns true
+        coEvery { wslService.checkSubmodules(any()) } returns true
+
+        // When
+        viewModel.checkAndCloneRepository()
+
+        // Then
+        assertEquals("Repository is ready.", viewModel.repoStatus.value)
+    }
+
+    @Test
+    fun `checkAndCloneRepository should init submodules if not initialized`() = runTest {
+        // Given
+        coEvery { wslService.checkGitRepository(any()) } returns true
+        coEvery { wslService.checkSubmodules(any()) } returns false
+        coEvery { wslService.initializeSubmodules(any()) } returns WslService.CommandResult("", "", 0, true)
+
+        // When
+        viewModel.checkAndCloneRepository()
+
+        // Then
+        assertEquals("Submodules initialized successfully.", viewModel.repoStatus.value)
+    }
+
+    @Test
+    fun `checkAndCloneRepository should clone repo if not exists`() = runTest {
+        // Given
+        coEvery { wslService.checkGitRepository(any()) } returns false
+        coEvery { wslService.cloneRepository(any(), any(), any()) } returns WslService.CommandResult("", "", 0, true)
+
+        // When
+        viewModel.checkAndCloneRepository()
+
+        // Then
+        assertEquals("Repository cloned successfully.", viewModel.repoStatus.value)
+    }
 }

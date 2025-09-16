@@ -438,4 +438,29 @@ class WslService {
             CommandResult("", "WSL test error: ${e.message}", -1, false)
         }
     }
+
+    suspend fun checkGitRepository(path: String): Boolean = withContext(Dispatchers.IO) {
+        val command = "cd $path && git rev-parse --is-inside-work-tree"
+        val result = executeWslCommand(command)
+        return@withContext result.success && result.output.trim() == "true"
+    }
+
+    suspend fun checkSubmodules(path: String): Boolean = withContext(Dispatchers.IO) {
+        val command = "cd $path && git submodule status"
+        val result = executeWslCommand(command)
+        // If the command fails, there are no submodules or not a git repo.
+        // If it succeeds, we check if the output contains lines that start with '-'
+        // which indicates an uninitialized submodule.
+        return@withContext result.success && !result.output.lines().any { it.trim().startsWith("-") }
+    }
+
+    suspend fun cloneRepository(url: String, branch: String, path: String): CommandResult = withContext(Dispatchers.IO) {
+        val command = "git clone --recurse-submodules -b $branch $url $path"
+        return@withContext executeWslCommand(command)
+    }
+
+    suspend fun initializeSubmodules(path: String): CommandResult = withContext(Dispatchers.IO) {
+        val command = "cd $path && git submodule update --init --recursive"
+        return@withContext executeWslCommand(command)
+    }
 }
