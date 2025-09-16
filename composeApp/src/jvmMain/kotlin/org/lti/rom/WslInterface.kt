@@ -29,11 +29,13 @@ fun WslInterface(viewModel: WslViewModel) {
     var commandInput by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header
