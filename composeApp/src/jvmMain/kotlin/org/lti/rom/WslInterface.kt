@@ -13,9 +13,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WslInterface(viewModel: WslViewModel) {
     val isConnected by viewModel.isConnected.collectAsState()
@@ -26,6 +31,9 @@ fun WslInterface(viewModel: WslViewModel) {
     val errorMessage by viewModel.errorMessage.collectAsState()
     val currentDirectory by viewModel.currentDirectory.collectAsState()
     val fileBrowserState by viewModel.fileBrowserState.collectAsState()
+    val targetDevices by viewModel.targetDevices.collectAsState()
+    val selectedTargetDevice by viewModel.selectedTargetDevice.collectAsState()
+    var expanded by remember { mutableStateOf(false) }
 
     var showConnectionDialog by remember { mutableStateOf(false) }
     var commandInput by remember { mutableStateOf("") }
@@ -131,7 +139,39 @@ fun WslInterface(viewModel: WslViewModel) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
+
+                if (targetDevices.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedTargetDevice,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Target Device") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                            },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            targetDevices.forEach { device ->
+                                DropdownMenuItem(
+                                    text = { Text(device) },
+                                    onClick = {
+                                        viewModel.onSelectedTargetDeviceChange(device)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 

@@ -51,6 +51,12 @@ class WslViewModel(
     private val _password = MutableStateFlow("")
     val password: StateFlow<String> = _password.asStateFlow()
 
+    private val _selectedTargetDevice = MutableStateFlow("")
+    val selectedTargetDevice: StateFlow<String> = _selectedTargetDevice.asStateFlow()
+
+    private val _targetDevices = MutableStateFlow<List<String>>(emptyList())
+    val targetDevices: StateFlow<List<String>> = _targetDevices.asStateFlow()
+
     private val _repoStatus = MutableStateFlow("")
     val repoStatus: StateFlow<String> = _repoStatus.asStateFlow()
 
@@ -83,6 +89,25 @@ class WslViewModel(
 
     fun onPasswordChange(password: String) {
         _password.value = password
+    }
+
+    fun onSelectedTargetDeviceChange(device: String) {
+        _selectedTargetDevice.value = device
+    }
+
+    fun loadTargetDevices() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val devices = wslService.listTargetDevices(_currentDirectory.value)
+                _targetDevices.value = devices
+            } catch (e: Exception) {
+                Napier.e("Error loading target devices", throwable = e)
+                _errorMessage.value = "Error loading target devices: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     fun checkAndCloneRepository() {
@@ -133,6 +158,7 @@ class WslViewModel(
             _gitRepoUrl.value = settings[SettingsService.REPO_URL_KEY] as? String ?: ""
             _gitBranch.value = settings[SettingsService.BRANCH_KEY] as? String ?: "main"
             _currentDirectory.value = settings[SettingsService.WORK_DIR_KEY] as? String ?: "/"
+            _selectedTargetDevice.value = settings[SettingsService.SELECTED_TARGET_DEVICE_KEY] as? String ?: ""
 
             val connection = WslService.WslConnection(
                 host = settings[SettingsService.HOST_KEY] as? String ?: "localhost",
@@ -142,6 +168,7 @@ class WslViewModel(
             )
             connectToWsl(connection)
             navigateTo(Screen.MAIN)
+            loadTargetDevices()
         } else {
             checkWslAvailability()
         }
@@ -155,7 +182,8 @@ class WslViewModel(
             password = _password.value,
             workDir = _currentDirectory.value,
             repoUrl = _gitRepoUrl.value,
-            branch = _gitBranch.value
+            branch = _gitBranch.value,
+            selectedTargetDevice = _selectedTargetDevice.value
         )
     }
     
@@ -333,6 +361,7 @@ class WslViewModel(
     fun onFolderSelected(path: String) {
         _currentDirectory.value = path
         closeFileBrowser()
+        loadTargetDevices()
     }
 
     fun navigateToFile(path: String) {

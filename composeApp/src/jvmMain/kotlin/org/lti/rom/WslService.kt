@@ -475,4 +475,16 @@ class WslService {
         val command = "cd $path && git submodule update --init --recursive"
         return@withContext executeWslCommand(command)
     }
+
+    suspend fun listTargetDevices(path: String): List<String> = withContext(Dispatchers.IO) {
+        val command = "ls -d $path/target/*/ | xargs -n 1 basename"
+        val result = executeWslCommand(command)
+
+        if (result.success) {
+            result.output.lines().filter { it.isNotBlank() }
+        } else {
+            Napier.e("Failed to list target devices for path: $path, error: ${result.error}")
+            emptyList()
+        }
+    }
 }

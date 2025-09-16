@@ -205,4 +205,29 @@ class WslViewModelTest {
         // Then
         assertEquals(Screen.SETUP, viewModel.currentScreen.value)
     }
+
+    @Test
+    fun `loadTargetDevices should update targetDevices state`() = runTest {
+        // Given
+        val devices = listOf("device1", "device2")
+        coEvery { wslService.listTargetDevices(any()) } returns devices
+
+        // When
+        viewModel.loadTargetDevices()
+
+        // Then
+        assertEquals(devices, viewModel.targetDevices.value)
+    }
+
+    @Test
+    fun `onSelectedTargetDeviceChange should update selectedTargetDevice state`() {
+        // Given
+        val device = "device1"
+
+        // When
+        viewModel.onSelectedTargetDeviceChange(device)
+
+        // Then
+        assertEquals(device, viewModel.selectedTargetDevice.value)
+    }
 }

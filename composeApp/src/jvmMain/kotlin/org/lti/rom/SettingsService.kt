@@ -25,7 +25,8 @@ class SettingsService {
         password: String,
         workDir: String,
         repoUrl: String,
-        branch: String
+        branch: String,
+        selectedTargetDevice: String
     ) {
         settings.putString(HOST_KEY, encrypt(host))
         settings.putInt(PORT_KEY, port)
@@ -34,6 +35,7 @@ class SettingsService {
         settings.putString(WORK_DIR_KEY, encrypt(workDir))
         settings.putString(REPO_URL_KEY, encrypt(repoUrl))
         settings.putString(BRANCH_KEY, encrypt(branch))
+        settings.putString(SELECTED_TARGET_DEVICE_KEY, encrypt(selectedTargetDevice))
     }
 
     fun getSettings(): Map<String, Any?> {
@@ -44,7 +46,8 @@ class SettingsService {
             PASSWORD_KEY to settings.getStringOrNull(PASSWORD_KEY)?.let { decrypt(it) },
             WORK_DIR_KEY to settings.getStringOrNull(WORK_DIR_KEY)?.let { decrypt(it) },
             REPO_URL_KEY to settings.getStringOrNull(REPO_URL_KEY)?.let { decrypt(it) },
-            BRANCH_KEY to settings.getStringOrNull(BRANCH_KEY)?.let { decrypt(it) }
+            BRANCH_KEY to settings.getStringOrNull(BRANCH_KEY)?.let { decrypt(it) },
+            SELECTED_TARGET_DEVICE_KEY to settings.getStringOrNull(SELECTED_TARGET_DEVICE_KEY)?.let { decrypt(it) }
         )
     }
 
@@ -60,5 +63,6 @@ class SettingsService {
         const val WORK_DIR_KEY = "work_dir"
         const val REPO_URL_KEY = "repo_url"
         const val BRANCH_KEY = "branch"
+        const val SELECTED_TARGET_DEVICE_KEY = "selected_target_device"
     }
 }
