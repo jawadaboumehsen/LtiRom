@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
 
 @Composable
@@ -22,17 +23,13 @@ fun WslInterface(viewModel: WslViewModel) {
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val currentDirectory by viewModel.currentDirectory.collectAsState()
-    
-    // Debug: Print state changes
-    LaunchedEffect(commandOutput) {
-        println("🔍 [DEBUG] UI received commandOutput: '$commandOutput' (length: ${commandOutput.length})")
-    }
-    
+    val fileBrowserState by viewModel.fileBrowserState.collectAsState()
+
     var showConnectionDialog by remember { mutableStateOf(false) }
     var commandInput by remember { mutableStateOf("") }
-    
+
     val scope = rememberCoroutineScope()
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -49,7 +46,7 @@ fun WslInterface(viewModel: WslViewModel) {
                 text = "WSL Interface",
                 style = MaterialTheme.typography.headlineMedium
             )
-            
+
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (isConnected) {
                     Button(
@@ -65,44 +62,19 @@ fun WslInterface(viewModel: WslViewModel) {
                         Text("Connect")
                     }
                 }
-                
+
+                Button(
+                    onClick = { viewModel.openFileBrowser() },
+                    enabled = isWslAvailable && !isLoading
+                ) {
+                    Text("Browse")
+                }
+
                 Button(
                     onClick = { viewModel.checkWslAvailability() },
                     enabled = !isLoading
                 ) {
                     Text("Refresh")
-                }
-                
-                Button(
-                    onClick = { 
-                        viewModel.executeCommand("echo Testing WSL connection")
-                    },
-                    enabled = !isLoading
-                ) {
-                    Text("Test")
-                }
-                
-                Button(
-                    onClick = {
-                        // Test UI update directly
-                        viewModel.clearOutput()
-                        // Simulate some output
-                        viewModel.executeCommand("pwd")
-                    },
-                    enabled = !isLoading
-                ) {
-                    Text("Test UI")
-                }
-                
-                Button(
-                    onClick = {
-                        // Test home directory execution
-                        viewModel.clearOutput()
-                        viewModel.executeCommand("pwd && ls -la")
-                    },
-                    enabled = !isLoading
-                ) {
-                    Text("Test Home Dir")
                 }
             }
         }
@@ -310,5 +282,15 @@ fun WslInterface(viewModel: WslViewModel) {
         onConnect = { connection ->
             viewModel.connectToWsl(connection)
         }
+    )
+
+    WslFileBrowserDialog(
+        isOpen = fileBrowserState.isOpen,
+        onDismiss = { viewModel.closeFileBrowser() },
+        onSelect = { selectedPath ->
+            viewModel.onFolderSelected(selectedPath)
+        },
+        onNavigate = { path -> viewModel.navigateToFile(path) },
+        state = fileBrowserState
     )
 }

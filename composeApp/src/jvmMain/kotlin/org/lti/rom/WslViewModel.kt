@@ -3,11 +3,11 @@ package org.lti.rom
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class WslViewModel : ViewModel() {
-    private val wslService = WslService()
+class WslViewModel(private val wslService: WslService = WslService()) : ViewModel() {
     
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
@@ -35,45 +35,45 @@ class WslViewModel : ViewModel() {
     }
     
     fun checkWslAvailability() {
-        println("🔍 [DEBUG] WslViewModel.checkWslAvailability() called")
+        Napier.d("WslViewModel.checkWslAvailability() called")
         
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = ""
             
             try {
-                println("🔍 [DEBUG] Checking WSL availability...")
+                Napier.d("Checking WSL availability...")
                 val available = wslService.isWslAvailable()
                 _isWslAvailable.value = available
                 
-                println("🔍 [DEBUG] WSL available: $available")
+                Napier.d("WSL available: $available")
                 
                 if (available) {
                     // Test the connection
-                    println("🔍 [DEBUG] WSL is available, testing connection...")
+                    Napier.d("WSL is available, testing connection...")
                     val testResult = wslService.testWslConnection()
                     
-                    println("🔍 [DEBUG] Connection test result - Success: ${testResult.success}, Error: ${testResult.error}")
+                    Napier.d("Connection test result - Success: ${testResult.success}, Error: ${testResult.error}")
                     
                     if (testResult.success) {
-                        println("✅ [DEBUG] Connection test successful, loading distributions...")
+                        Napier.d("✅ Connection test successful, loading distributions...")
                         loadWslDistributions()
                         updateCurrentDirectory()
                         _errorMessage.value = ""
                     } else {
-                        println("❌ [DEBUG] Connection test failed: ${testResult.error}")
+                        Napier.d("❌ Connection test failed: ${testResult.error}")
                         _errorMessage.value = "WSL is available but connection test failed: ${testResult.error}"
                     }
                 } else {
-                    println("❌ [DEBUG] WSL is not available")
+                    Napier.d("❌ WSL is not available")
                     _errorMessage.value = "WSL is not available on this system. Please install WSL or ensure it's in your PATH."
                 }
             } catch (e: Exception) {
-                println("❌ [DEBUG] Exception in checkWslAvailability: ${e.message}")
+                Napier.e("Exception in checkWslAvailability", throwable = e)
                 _errorMessage.value = "Error checking WSL availability: ${e.message}"
             } finally {
                 _isLoading.value = false
-                println("🔍 [DEBUG] checkWslAvailability completed")
+                Napier.d("checkWslAvailability completed")
             }
         }
     }
@@ -94,9 +94,9 @@ class WslViewModel : ViewModel() {
             try {
                 val currentDir = wslService.getCurrentDirectory()
                 _currentDirectory.value = currentDir
-                println("🔍 [DEBUG] Updated current directory: '$currentDir'")
+                Napier.d("Updated current directory: '$currentDir'")
             } catch (e: Exception) {
-                println("❌ [DEBUG] Error updating current directory: ${e.message}")
+                Napier.e("Error updating current directory", throwable = e)
             }
         }
     }
@@ -123,9 +123,9 @@ class WslViewModel : ViewModel() {
     }
     
     fun executeCommand(command: String) {
-        println("🔍 [DEBUG] WslViewModel.executeCommand() called with: '$command'")
-        println("🔍 [DEBUG] Is connected: ${_isConnected.value}")
-        println("🔍 [DEBUG] WSL service isConnected: ${wslService.isConnected()}")
+        Napier.d("WslViewModel.executeCommand() called with: '$command'")
+        Napier.d("Is connected: ${_isConnected.value}")
+        Napier.d("WSL service isConnected: ${wslService.isConnected()}")
         
         viewModelScope.launch {
             _isLoading.value = true
@@ -133,16 +133,16 @@ class WslViewModel : ViewModel() {
             
             try {
                 val result = if (_isConnected.value) {
-                    println("🔍 [DEBUG] Using SSH command execution")
+                    Napier.d("Using SSH command execution")
                     wslService.executeCommand(command)
                 } else {
-                    println("🔍 [DEBUG] Using direct WSL command execution")
+                    Napier.d("Using direct WSL command execution")
                     wslService.executeWslCommand(command)
                 }
 
-                println("🔍 [DEBUG] Command execution result - Success: ${result.success}, Exit Code: ${result.exitCode}")
-                println("🔍 [DEBUG] Command output: '${result.output}'")
-                println("🔍 [DEBUG] Command error: '${result.error}'")
+                Napier.d("Command execution result - Success: ${result.success}, Exit Code: ${result.exitCode}")
+                Napier.d("Command output: '${result.output}'")
+                Napier.d("Command error: '${result.error}'")
 
                 val outputText = if (result.success) {
                     result.output
@@ -150,23 +150,23 @@ class WslViewModel : ViewModel() {
                     "Error: ${result.error}\nExit code: ${result.exitCode}"
                 }
 
-                println("🔍 [DEBUG] Setting commandOutput to: '$outputText'")
+                Napier.d("Setting commandOutput to: '$outputText'")
                 _commandOutput.value = outputText
-                println("🔍 [DEBUG] commandOutput state updated, current value: '${_commandOutput.value}'")
+                Napier.d("commandOutput state updated, current value: '${_commandOutput.value}'")
 
                 if (!result.success) {
-                    println("❌ [DEBUG] Command failed with exit code ${result.exitCode}")
+                    Napier.d("❌ Command failed with exit code ${result.exitCode}")
                     _errorMessage.value = "Command failed with exit code ${result.exitCode}"
                 } else {
-                    println("✅ [DEBUG] Command executed successfully")
+                    Napier.d("✅ Command executed successfully")
                 }
             } catch (e: Exception) {
-                println("❌ [DEBUG] Exception in executeCommand: ${e.message}")
+                Napier.e("Exception in executeCommand", throwable = e)
                 _errorMessage.value = "Command execution error: ${e.message}"
                 _commandOutput.value = "Error: ${e.message}"
             } finally {
                 _isLoading.value = false
-                println("🔍 [DEBUG] executeCommand completed")
+                Napier.d("executeCommand completed")
             }
         }
     }
@@ -186,5 +186,44 @@ class WslViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         wslService.disconnect()
+    }
+
+    private val _fileBrowserState = MutableStateFlow(FileBrowserState())
+    val fileBrowserState: StateFlow<FileBrowserState> = _fileBrowserState.asStateFlow()
+
+    fun openFileBrowser() {
+        _fileBrowserState.value = _fileBrowserState.value.copy(isOpen = true)
+        loadFiles(_fileBrowserState.value.currentPath)
+    }
+
+    fun closeFileBrowser() {
+        _fileBrowserState.value = _fileBrowserState.value.copy(isOpen = false)
+    }
+
+    fun onFolderSelected(path: String) {
+        _currentDirectory.value = path
+        closeFileBrowser()
+    }
+
+    fun navigateToFile(path: String) {
+        loadFiles(path)
+    }
+
+    private fun loadFiles(path: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val files = wslService.listFiles(path)
+                _fileBrowserState.value = _fileBrowserState.value.copy(
+                    currentPath = path,
+                    files = files
+                )
+            } catch (e: Exception) {
+                Napier.e("Error loading files for path: $path", throwable = e)
+                _errorMessage.value = "Error loading files: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 }

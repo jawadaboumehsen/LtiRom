@@ -1,6 +1,7 @@
 package org.lti.rom
 
 import com.jcraft.jsch.*
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.*
 import org.apache.commons.exec.*
 import java.io.*
@@ -28,38 +29,38 @@ class WslService {
     )
     
     suspend fun connect(connection: WslConnection): Boolean = withContext(Dispatchers.IO) {
-        println("🔍 [DEBUG] Attempting to connect to ${connection.username}@${connection.host}:${connection.port}")
+        Napier.d("Attempting to connect to ${connection.username}@${connection.host}:${connection.port}")
         try {
             session = jsch.getSession(connection.username, connection.host, connection.port)
             session?.setConfig("StrictHostKeyChecking", "no")
 
             if (connection.useKeyAuth && connection.keyPath.isNotEmpty()) {
-                println("🔍 [DEBUG] Using key authentication with key: ${connection.keyPath}")
+                Napier.d("Using key authentication with key: ${connection.keyPath}")
                 jsch.addIdentity(connection.keyPath)
             } else {
-                println("🔍 [DEBUG] Using password authentication")
+                Napier.d("Using password authentication")
                 session?.setPassword(connection.password)
             }
 
             session?.connect(5000)
             val isConnected = session?.isConnected == true
             if (isConnected) {
-                println("✅ [DEBUG] SSH connection successful")
+                Napier.d("SSH connection successful")
             } else {
-                println("❌ [DEBUG] SSH connection failed")
+                Napier.d("SSH connection failed")
             }
             isConnected
         } catch (e: JSchException) {
-            println("❌ [DEBUG] SSH connection failed: ${e.message}")
+            Napier.e("SSH connection failed", throwable = e)
             false
         } catch (e: Exception) {
-            println("❌ [DEBUG] An unexpected error occurred during connection: ${e.message}")
+            Napier.e("An unexpected error occurred during connection", throwable = e)
             false
         }
     }
 
     suspend fun executeCommand(command: String): CommandResult = withContext(Dispatchers.IO) {
-        println("🔍 [DEBUG] Executing SSH command: '$command'")
+        Napier.d("Executing SSH command: '$command'")
         var channel: ChannelExec? = null
         try {
             if (session?.isConnected != true) {
@@ -83,14 +84,14 @@ class WslService {
             }
 
             val exitCode = channel.exitStatus
-            println("✅ [DEBUG] SSH command executed with exit code: $exitCode")
+            Napier.d("SSH command executed with exit code: $exitCode")
 
             CommandResult(output, error, exitCode, exitCode == 0)
         } catch (e: JSchException) {
-            println("❌ [DEBUG] SSH command execution failed: ${e.message}")
+            Napier.e("SSH command execution failed", throwable = e)
             CommandResult("", "SSH command execution failed: ${e.message}", -1, false)
         } catch (e: Exception) {
-            println("❌ [DEBUG] An unexpected error occurred during command execution: ${e.message}")
+            Napier.e("An unexpected error occurred during command execution", throwable = e)
             CommandResult("", "An unexpected error occurred during command execution: ${e.message}", -1, false)
         } finally {
             channel?.disconnect()
@@ -98,7 +99,7 @@ class WslService {
     }
     
     suspend fun executeWslCommand(command: String): CommandResult = withContext(Dispatchers.IO) {
-        println("🔍 [DEBUG] executeWslCommand called with command: '$command'")
+        Napier.d("executeWslCommand called with command: '$command'")
         
         try {
             // Since we know 'wsl' works, try it first with different approaches
@@ -106,7 +107,7 @@ class WslService {
             
             // Get the current user's home directory in WSL
             val homeDir = getWslHomeDirectory()
-            println("🔍 [DEBUG] WSL home directory: '$homeDir'")
+            Napier.d("WSL home directory: '$homeDir'")
             
             // Try different command approaches with home directory context
             val commandApproaches = listOf(
@@ -128,47 +129,84 @@ class WslService {
             
             for (cmdArgs in commandApproaches) {
                 try {
-                    println("🔍 [DEBUG] Attempting command: ${cmdArgs.joinToString(" ")}")
+                    Napier.d("Attempting command: ${cmdArgs.joinToString(" ")}")
                     
                     val processBuilder = ProcessBuilder(cmdArgs)
                     processBuilder.redirectErrorStream(true) // Merge error stream with output
                     
-                    println("🔍 [DEBUG] ProcessBuilder created, starting process...")
+                    Napier.d("ProcessBuilder created, starting process...")
                     val process = processBuilder.start()
                     
-                    println("🔍 [DEBUG] Process started, reading output...")
+                    Napier.d("Process started, reading output...")
                     val output = process.inputStream.bufferedReader().readText()
                     val exitCode = process.waitFor()
                     
-                    println("🔍 [DEBUG] Process finished with exit code: $exitCode")
-                    println("🔍 [DEBUG] Output: '$output'")
+                    Napier.d("Process finished with exit code: $exitCode")
+                    Napier.d("Output: '$output'")
                     
                     if (exitCode == 0) {
-                        println("✅ [DEBUG] Command successful!")
+                        Napier.d("✅ Command successful!")
                         return@withContext CommandResult(output, "", exitCode, true)
                     } else {
-                        println("❌ [DEBUG] Command failed with exit code: $exitCode")
+                        Napier.d("❌ Command failed with exit code: $exitCode")
                         // Continue to next approach
                     }
                 } catch (e: Exception) {
-                    println("❌ [DEBUG] Exception with command approach ${cmdArgs.joinToString(" ")}: ${e.message}")
+                    Napier.e("Exception with command approach ${cmdArgs.joinToString(" ")}", throwable = e)
                     continue
                 }
             }
             
             // If all approaches failed
             val errorMsg = "All WSL command approaches failed for: $command"
-            println("❌ [DEBUG] All WSL command approaches failed: $errorMsg")
+            Napier.e(errorMsg)
             CommandResult("", errorMsg, -1, false)
         } catch (e: Exception) {
             val errorMsg = "WSL command execution failed: ${e.message}"
-            println("❌ [DEBUG] Outer exception: $errorMsg")
+            Napier.e(errorMsg, throwable = e)
             CommandResult("", errorMsg, -1, false)
+        }
+    }
+
+    suspend fun listFiles(path: String): List<WslFile> = withContext(Dispatchers.IO) {
+        val command = "ls -la $path"
+        val result = executeWslCommand(command)
+
+        if (result.success) {
+            result.output.lines()
+                .mapNotNull { line ->
+                    // Skip empty lines and the "total" line
+                    if (line.isBlank() || line.startsWith("total")) {
+                        return@mapNotNull null
+                    }
+
+                    val parts = line.split("\\s+".toRegex())
+                    if (parts.size < 9) {
+                        return@mapNotNull null
+                    }
+
+                    val permissions = parts[0]
+                    val isDirectory = permissions.startsWith("d")
+                    val name = parts.last()
+
+                    // Skip "." and ".." entries
+                    if (name == "." || name == "..") {
+                        return@mapNotNull null
+                    }
+
+                    val fullPath = if (path.endsWith("/")) "$path$name" else "$path/$name"
+
+                    WslFile(name = name, path = fullPath, isDirectory = isDirectory)
+                }
+        } else {
+            // Handle error case
+            Napier.e("Failed to list files for path: $path, error: ${result.error}")
+            emptyList()
         }
     }
     
     suspend fun listWslDistributions(): List<String> = withContext(Dispatchers.IO) {
-        println("🔍 [DEBUG] Listing WSL distributions...")
+        Napier.d("Listing WSL distributions...")
         
         try {
             // Try to get WSL distribution list using wsl --list
@@ -176,72 +214,72 @@ class WslService {
             
             for (wslCmd in wslCommands) {
                 try {
-                    println("🔍 [DEBUG] Trying to list distributions with: $wslCmd --list --verbose")
+                    Napier.d("Trying to list distributions with: $wslCmd --list --verbose")
                     val processBuilder = ProcessBuilder(wslCmd, "--list", "--verbose")
                     val process = processBuilder.start()
                     val output = process.inputStream.bufferedReader().readText()
                     val exitCode = process.waitFor()
                     
-                    println("🔍 [DEBUG] WSL list command exit code: $exitCode")
-                    println("🔍 [DEBUG] WSL list output: '$output'")
+                    Napier.d("WSL list command exit code: $exitCode")
+                    Napier.d("WSL list output: '$output'")
                     
                     if (exitCode == 0) {
                         val distributions = output.lines()
                             .filter { it.isNotBlank() && !it.startsWith("NAME") }
                             .map { it.split("\\s+".toRegex())[0] }
                         
-                        println("🔍 [DEBUG] Found distributions: $distributions")
+                        Napier.d("Found distributions: $distributions")
                         return@withContext distributions
                     }
                 } catch (e: Exception) {
-                    println("❌ [DEBUG] Exception listing distributions with $wslCmd: ${e.message}")
+                    Napier.e("Exception listing distributions with $wslCmd", throwable = e)
                     continue
                 }
             }
             
-            println("❌ [DEBUG] Could not list WSL distributions")
+            Napier.d("Could not list WSL distributions")
             emptyList()
         } catch (e: Exception) {
-            println("❌ [DEBUG] Exception in listWslDistributions: ${e.message}")
+            Napier.e("Exception in listWslDistributions", throwable = e)
             emptyList()
         }
     }
     
     suspend fun isWslAvailable(): Boolean = withContext(Dispatchers.IO) {
-        println("🔍 [DEBUG] Checking WSL availability...")
+        Napier.d("Checking WSL availability...")
         
         try {
             // Try to run wsl --version to check availability
             val wslCommands = listOf("wsl", "wsl.exe", "C:\\Windows\\System32\\wsl.exe")
             
-            println("🔍 [DEBUG] Testing WSL commands for availability: ${wslCommands.joinToString(", ")}")
+            Napier.d("Testing WSL commands for availability: ${wslCommands.joinToString(", ")}")
             
             for (wslCmd in wslCommands) {
                 try {
-                    println("🔍 [DEBUG] Testing WSL command: '$wslCmd --version'")
+                    Napier.d("Testing WSL command: '$wslCmd --version'")
                     val processBuilder = ProcessBuilder(wslCmd, "--version")
                     val process = processBuilder.start()
                     val exitCode = process.waitFor()
                     
-                    println("🔍 [DEBUG] WSL version check exit code: $exitCode")
+                    Napier.d("WSL version check exit code: $exitCode")
                     
                     if (exitCode == 0) {
-                        println("✅ [DEBUG] WSL is available via: $wslCmd")
+                        Napier.d("✅ WSL is available via: $wslCmd")
                         return@withContext true
                     } else {
-                        println("❌ [DEBUG] WSL command '$wslCmd' failed with exit code: $exitCode")
+                        Napier.d("❌ WSL command '$wslCmd' failed with exit code: $exitCode")
                     }
                 } catch (e: Exception) {
-                    println("❌ [DEBUG] Exception testing WSL command '$wslCmd': ${e.message}")
-                    println("🔍 [DEBUG] Exception type: ${e.javaClass.simpleName}")
+                    Napier.e("Exception testing WSL command '$wslCmd'", throwable = e)
+                    Napier.d("Exception type: ${e.javaClass.simpleName}")
                     continue
                 }
             }
             
-            println("❌ [DEBUG] WSL is not available - all commands failed")
+            Napier.d("WSL is not available - all commands failed")
             false
         } catch (e: Exception) {
-            println("❌ [DEBUG] Outer exception in isWslAvailable: ${e.message}")
+            Napier.e("Outer exception in isWslAvailable", throwable = e)
             false
         }
     }
@@ -251,7 +289,7 @@ class WslService {
             channel?.disconnect()
             session?.disconnect()
         } catch (e: Exception) {
-            println("Error disconnecting: ${e.message}")
+            Napier.e("Error disconnecting", throwable = e)
         }
     }
     
@@ -263,7 +301,7 @@ class WslService {
         try {
             // First, get the current WSL user
             val username = getWslUsername()
-            println("🔍 [DEBUG] WSL username: '$username'")
+            Napier.d("WSL username: '$username'")
             
             // Try to get the home directory using different methods
             val homeCommands = listOf(
@@ -281,7 +319,7 @@ class WslService {
                     val exitCode = process.waitFor()
                     
                     if (exitCode == 0 && output.isNotEmpty()) {
-                        println("🔍 [DEBUG] Home directory command '$cmd' returned: '$output'")
+                        Napier.d("Home directory command '$cmd' returned: '$output'")
                         return@withContext output
                     }
                 } catch (e: Exception) {
@@ -291,10 +329,10 @@ class WslService {
             
             // Fallback to constructed home directory
             val fallbackHome = "/home/$username"
-            println("🔍 [DEBUG] Using fallback home directory: '$fallbackHome'")
+            Napier.d("Using fallback home directory: '$fallbackHome'")
             fallbackHome
         } catch (e: Exception) {
-            println("❌ [DEBUG] Error getting WSL home directory: ${e.message}")
+            Napier.e("Error getting WSL home directory", throwable = e)
             "/home/ubuntu"
         }
     }
@@ -307,11 +345,11 @@ class WslService {
             val exitCode = process.waitFor()
             
             if (exitCode == 0 && output.isNotEmpty()) {
-                println("🔍 [DEBUG] WSL username: '$output'")
+                Napier.d("WSL username: '$output'")
                 return@withContext output
             }
         } catch (e: Exception) {
-            println("❌ [DEBUG] Error getting WSL username: ${e.message}")
+            Napier.e("Error getting WSL username", throwable = e)
         }
         
         // Fallback username
@@ -322,20 +360,20 @@ class WslService {
         try {
             // Get the home directory and use it as the current directory
             val homeDir = getWslHomeDirectory()
-            println("🔍 [DEBUG] Current WSL directory: '$homeDir'")
+            Napier.d("Current WSL directory: '$homeDir'")
             return@withContext homeDir
         } catch (e: Exception) {
-            println("❌ [DEBUG] Error getting current directory: ${e.message}")
+            Napier.e("Error getting current directory", throwable = e)
             "/home/ubuntu"
         }
     }
     
     suspend fun testHomeDirectoryExecution(): CommandResult = withContext(Dispatchers.IO) {
-        println("🔍 [DEBUG] Testing home directory execution...")
+        Napier.d("Testing home directory execution...")
         
         try {
             val homeDir = getWslHomeDirectory()
-            println("🔍 [DEBUG] Testing commands from home directory: '$homeDir'")
+            Napier.d("Testing commands from home directory: '$homeDir'")
             
             // Test commands that should show we're in the home directory
             val testCommands = listOf(
@@ -348,12 +386,12 @@ class WslService {
             for (cmd in testCommands) {
                 try {
                     val result = executeWslCommand(cmd)
-                    println("🔍 [DEBUG] Test command '$cmd' - Success: ${result.success}, Output: '${result.output.trim()}'")
+                    Napier.d("Test command '$cmd' - Success: ${result.success}, Output: '${result.output.trim()}'")
                     if (result.success) {
                         return@withContext result
                     }
                 } catch (e: Exception) {
-                    println("❌ [DEBUG] Test command '$cmd' failed: ${e.message}")
+                    Napier.e("Test command '$cmd' failed", throwable = e)
                     continue
                 }
             }
@@ -365,7 +403,7 @@ class WslService {
     }
     
     suspend fun testWslConnection(): CommandResult = withContext(Dispatchers.IO) {
-        println("🔍 [DEBUG] Testing WSL connection...")
+        Napier.d("Testing WSL connection...")
         
         try {
             // Test with multiple simple commands to find what works
@@ -381,22 +419,22 @@ class WslService {
             )
             
             for (testCmd in testCommands) {
-                println("🔍 [DEBUG] Testing command: '$testCmd'")
+                Napier.d("Testing command: '$testCmd'")
                 val result = executeWslCommand(testCmd)
                 
-                println("🔍 [DEBUG] Test command '$testCmd' result - Success: ${result.success}, Exit Code: ${result.exitCode}")
-                println("🔍 [DEBUG] Test command output: '${result.output}'")
+                Napier.d("Test command '$testCmd' result - Success: ${result.success}, Exit Code: ${result.exitCode}")
+                Napier.d("Test command output: '${result.output}'")
                 
                 if (result.success) {
-                    println("✅ [DEBUG] WSL connection test successful with command: $testCmd")
+                    Napier.d("✅ WSL connection test successful with command: $testCmd")
                     return@withContext CommandResult("WSL connection test successful with: $testCmd\nOutput: ${result.output}", "", 0, true)
                 }
             }
             
-            println("❌ [DEBUG] All test commands failed")
+            Napier.d("❌ All test commands failed")
             CommandResult("", "WSL test failed: All test commands failed", -1, false)
         } catch (e: Exception) {
-            println("❌ [DEBUG] Exception in testWslConnection: ${e.message}")
+            Napier.e("Exception in testWslConnection", throwable = e)
             CommandResult("", "WSL test error: ${e.message}", -1, false)
         }
     }
