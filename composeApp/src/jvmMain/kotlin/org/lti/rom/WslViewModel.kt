@@ -7,7 +7,10 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class WslViewModel(private val wslService: WslService = WslService()) : ViewModel() {
+class WslViewModel(
+    private val wslService: WslService = WslService(),
+    private val settingsService: SettingsService = SettingsService()
+) : ViewModel() {
     
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
@@ -36,8 +39,27 @@ class WslViewModel(private val wslService: WslService = WslService()) : ViewMode
     private val _gitBranch = MutableStateFlow("main")
     val gitBranch: StateFlow<String> = _gitBranch.asStateFlow()
 
+    private val _host = MutableStateFlow("localhost")
+    val host: StateFlow<String> = _host.asStateFlow()
+
+    private val _port = MutableStateFlow("22")
+    val port: StateFlow<String> = _port.asStateFlow()
+
+    private val _username = MutableStateFlow("wsl")
+    val username: StateFlow<String> = _username.asStateFlow()
+
+    private val _password = MutableStateFlow("")
+    val password: StateFlow<String> = _password.asStateFlow()
+
     private val _repoStatus = MutableStateFlow("")
     val repoStatus: StateFlow<String> = _repoStatus.asStateFlow()
+
+    private val _currentScreen = MutableStateFlow(Screen.SETUP)
+    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+
+    fun navigateTo(screen: Screen) {
+        _currentScreen.value = screen
+    }
 
     fun onGitRepoUrlChange(url: String) {
         _gitRepoUrl.value = url
@@ -45,6 +67,22 @@ class WslViewModel(private val wslService: WslService = WslService()) : ViewMode
 
     fun onGitBranchChange(branch: String) {
         _gitBranch.value = branch
+    }
+
+    fun onHostChange(host: String) {
+        _host.value = host
+    }
+
+    fun onPortChange(port: String) {
+        _port.value = port
+    }
+
+    fun onUsernameChange(username: String) {
+        _username.value = username
+    }
+
+    fun onPasswordChange(password: String) {
+        _password.value = password
     }
 
     fun checkAndCloneRepository() {
@@ -90,7 +128,35 @@ class WslViewModel(private val wslService: WslService = WslService()) : ViewMode
     }
     
     init {
-        checkWslAvailability()
+        if (settingsService.settingsExist()) {
+            val settings = settingsService.getSettings()
+            _gitRepoUrl.value = settings[SettingsService.REPO_URL_KEY] as? String ?: ""
+            _gitBranch.value = settings[SettingsService.BRANCH_KEY] as? String ?: "main"
+            _currentDirectory.value = settings[SettingsService.WORK_DIR_KEY] as? String ?: "/"
+
+            val connection = WslService.WslConnection(
+                host = settings[SettingsService.HOST_KEY] as? String ?: "localhost",
+                port = settings[SettingsService.PORT_KEY] as? Int ?: 22,
+                username = settings[SettingsService.USERNAME_KEY] as? String ?: "wsl",
+                password = settings[SettingsService.PASSWORD_KEY] as? String ?: ""
+            )
+            connectToWsl(connection)
+            navigateTo(Screen.MAIN)
+        } else {
+            checkWslAvailability()
+        }
+    }
+
+    fun saveSettings() {
+        settingsService.saveSettings(
+            host = _host.value,
+            port = _port.value.toIntOrNull() ?: 22,
+            username = _username.value,
+            password = _password.value,
+            workDir = _currentDirectory.value,
+            repoUrl = _gitRepoUrl.value,
+            branch = _gitBranch.value
+        )
     }
     
     fun checkWslAvailability() {

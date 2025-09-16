@@ -9,6 +9,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import io.github.aakira.napier.Napier
@@ -78,6 +80,9 @@ fun WslInterface(viewModel: WslViewModel) {
                 ) {
                     Text("Refresh")
                 }
+                IconButton(onClick = { viewModel.navigateTo(Screen.SETTINGS) }) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                }
             }
         }
         
@@ -136,45 +141,6 @@ fun WslInterface(viewModel: WslViewModel) {
             }
         }
 
-        // Git Repository Section
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Git Repository",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                val gitRepoUrl by viewModel.gitRepoUrl.collectAsState()
-                val gitBranch by viewModel.gitBranch.collectAsState()
-                val repoStatus by viewModel.repoStatus.collectAsState()
-
-                OutlinedTextField(
-                    value = gitRepoUrl,
-                    onValueChange = { viewModel.onGitRepoUrlChange(it) },
-                    label = { Text("Repository URL") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = gitBranch,
-                    onValueChange = { viewModel.onGitBranchChange(it) },
-                    label = { Text("Branch") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Button(
-                    onClick = { viewModel.checkAndCloneRepository() },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Check & Clone")
-                }
-                if (repoStatus.isNotEmpty()) {
-                    Text(repoStatus)
-                }
-            }
-        }
         
         // Command input section
         Card(
