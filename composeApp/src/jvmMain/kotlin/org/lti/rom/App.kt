@@ -1,15 +1,14 @@
 package org.lti.rom
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -19,47 +18,62 @@ fun App() {
     MaterialTheme {
         val wslViewModel = remember { WslViewModel() }
         val currentScreen by wslViewModel.currentScreen.collectAsState()
+        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        val scope = rememberCoroutineScope()
 
-        when (currentScreen) {
-            Screen.SETUP -> SetupScreen(wslViewModel)
-            Screen.MAIN -> {
-                var currentTab by remember { mutableStateOf(0) }
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                ) {
-                    // Top App Bar
-                    TopAppBar(
-                        title = { Text("LtiRom - WSL Desktop Client") }
-                    )
-
-                    // Tab Row
-                    TabRow(selectedTabIndex = currentTab) {
-                        Tab(
-                            selected = currentTab == 0,
-                            onClick = { currentTab = 0 },
-                            text = { Text("WSL Interface") }
-                        )
-                        Tab(
-                            selected = currentTab == 1,
-                            onClick = { currentTab = 1 },
-                            text = { Text("About") }
-                        )
-                    }
-
-                    // Tab Content
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                    ) {
-                        when (currentTab) {
-                            0 -> WslInterface(wslViewModel)
-                            1 -> AboutContent()
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    Text("LtiRom", modifier = Modifier.padding(16.dp))
+                    Divider()
+                    NavigationDrawerItem(
+                        label = { Text(text = "WSL Interface") },
+                        selected = currentScreen == Screen.MAIN,
+                        onClick = {
+                            wslViewModel.navigateTo(Screen.MAIN)
+                            scope.launch { drawerState.close() }
                         }
+                    )
+                    NavigationDrawerItem(
+                        label = { Text(text = "Settings") },
+                        selected = currentScreen == Screen.SETTINGS,
+                        onClick = {
+                            wslViewModel.navigateTo(Screen.SETTINGS)
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = { Text(text = "About") },
+                        selected = false,
+                        onClick = {
+                            // TODO: Create an About screen
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                }
+            }
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("LtiRom - WSL Desktop Client") },
+                        navigationIcon = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(Icons.Default.Menu, contentDescription = "Menu")
+                            }
+                        }
+                    )
+                }
+            ) { paddingValues ->
+                Box(modifier = Modifier.padding(paddingValues)) {
+                    when (currentScreen) {
+                        Screen.SETUP -> SetupScreen(wslViewModel)
+                        Screen.MAIN -> WslInterface(wslViewModel)
+                        Screen.SETTINGS -> SettingsScreen(wslViewModel)
                     }
                 }
             }
-            Screen.SETTINGS -> SettingsScreen(wslViewModel)
         }
     }
 }

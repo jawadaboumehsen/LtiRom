@@ -132,12 +132,6 @@ fun WslInterface(viewModel: WslViewModel) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 
-                // Debug information
-                Text(
-                    text = "Debug: Try 'echo test' or 'pwd' commands first",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
 

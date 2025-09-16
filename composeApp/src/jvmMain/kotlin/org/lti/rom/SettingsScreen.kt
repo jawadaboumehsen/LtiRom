@@ -23,58 +23,46 @@ fun SettingsScreen(viewModel: WslViewModel) {
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Settings")
+        Text("Settings", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = host,
-            onValueChange = { viewModel.onHostChange(it) },
-            label = { Text("Host") }
-        )
-        OutlinedTextField(
-            value = port,
-            onValueChange = { viewModel.onPortChange(it) },
-            label = { Text("Port") }
-        )
-        OutlinedTextField(
-            value = username,
-            onValueChange = { viewModel.onUsernameChange(it) },
-            label = { Text("Username") }
-        )
-        OutlinedTextField(
-            value = password,
-            onValueChange = { viewModel.onPasswordChange(it) },
-            label = { Text("Password") }
-        )
-        OutlinedTextField(
-            value = gitRepoUrl,
-            onValueChange = { viewModel.onGitRepoUrlChange(it) },
-            label = { Text("Repository URL") }
-        )
-        OutlinedTextField(
-            value = gitBranch,
-            onValueChange = { viewModel.onGitBranchChange(it) },
-            label = { Text("Branch") }
-        )
-        OutlinedTextField(
-            value = currentDirectory,
-            onValueChange = { /* This will be handled by the file browser */ },
-            label = { Text("Working Directory") },
-            enabled = false
-        )
-        Button(onClick = { viewModel.openFileBrowser() }) {
-            Text("Select Working Directory")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row {
-            Button(onClick = { viewModel.saveSettings() }) {
-                Text("Save")
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Connection", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(value = host, onValueChange = { viewModel.onHostChange(it) }, label = { Text("Host") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = port, onValueChange = { viewModel.onPortChange(it) }, label = { Text("Port") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = username, onValueChange = { viewModel.onUsernameChange(it) }, label = { Text("Username") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = password, onValueChange = { viewModel.onPasswordChange(it) }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth())
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = { viewModel.checkAndCloneRepository() }) {
-                Text("Re-check Repository")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Project", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(value = currentDirectory, onValueChange = {}, label = { Text("Working Directory") }, enabled = false, modifier = Modifier.fillMaxWidth())
+                Button(onClick = { viewModel.openFileBrowser() }) {
+                    Text("Select Working Directory")
+                }
+                OutlinedTextField(value = gitRepoUrl, onValueChange = { viewModel.onGitRepoUrlChange(it) }, label = { Text("Repository URL") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = gitBranch, onValueChange = { viewModel.onGitBranchChange(it) }, label = { Text("Branch") }, modifier = Modifier.fillMaxWidth())
+                Button(onClick = { viewModel.checkAndCloneRepository() }) {
+                    Text("Re-check Repository")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row {
+            Button(onClick = {
+                viewModel.saveSettings()
+                viewModel.navigateTo(Screen.MAIN)
+            }) {
+                Text("Save and Back")
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(onClick = { viewModel.navigateTo(Screen.MAIN) }) {
