@@ -35,8 +35,8 @@ class WslViewModelTest {
     @Test
     fun `openFileBrowser should open dialog and load files`() = runTest {
         // Given
-        val path = "/home/ubuntu"
-        val files = listOf(WslFile("test.txt", "/home/ubuntu/test.txt", false))
+        val path = "/"
+        val files = listOf(WslFile("test.txt", "/test.txt", false))
         coEvery { wslService.listFiles(path) } returns files
 
         // When
@@ -125,5 +125,20 @@ class WslViewModelTest {
 
         // Then
         assertEquals("Repository cloned successfully.", viewModel.repoStatus.value)
+    }
+
+    @Test
+    fun `connectToWsl should update current directory on successful connection`() = runTest {
+        // Given
+        val connection = WslService.WslConnection()
+        val homeDir = "/home/testuser"
+        coEvery { wslService.connect(connection) } returns true
+        coEvery { wslService.getSshHomeDirectory() } returns homeDir
+
+        // When
+        viewModel.connectToWsl(connection)
+
+        // Then
+        assertEquals(homeDir, viewModel.currentDirectory.value)
     }
 }

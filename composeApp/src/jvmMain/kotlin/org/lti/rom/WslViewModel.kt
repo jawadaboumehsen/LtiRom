@@ -27,7 +27,7 @@ class WslViewModel(private val wslService: WslService = WslService()) : ViewMode
     private val _errorMessage = MutableStateFlow("")
     val errorMessage: StateFlow<String> = _errorMessage.asStateFlow()
     
-    private val _currentDirectory = MutableStateFlow("/home/username")
+    private val _currentDirectory = MutableStateFlow("/")
     val currentDirectory: StateFlow<String> = _currentDirectory.asStateFlow()
 
     private val _gitRepoUrl = MutableStateFlow("")
@@ -169,7 +169,12 @@ class WslViewModel(private val wslService: WslService = WslService()) : ViewMode
                 val connected = wslService.connect(connection)
                 _isConnected.value = connected
                 
-                if (!connected) {
+                if (connected) {
+                    val homeDir = wslService.getSshHomeDirectory()
+                    if (homeDir != null) {
+                        _currentDirectory.value = homeDir
+                    }
+                } else {
                     _errorMessage.value = "Failed to connect to WSL"
                 }
             } catch (e: Exception) {
@@ -251,8 +256,8 @@ class WslViewModel(private val wslService: WslService = WslService()) : ViewMode
     val fileBrowserState: StateFlow<FileBrowserState> = _fileBrowserState.asStateFlow()
 
     fun openFileBrowser() {
-        _fileBrowserState.value = _fileBrowserState.value.copy(isOpen = true)
-        loadFiles(_fileBrowserState.value.currentPath)
+        _fileBrowserState.value = _fileBrowserState.value.copy(isOpen = true, currentPath = _currentDirectory.value)
+        loadFiles(_currentDirectory.value)
     }
 
     fun closeFileBrowser() {

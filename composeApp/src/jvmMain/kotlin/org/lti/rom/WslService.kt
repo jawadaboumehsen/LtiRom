@@ -59,6 +59,18 @@ class WslService {
         }
     }
 
+    suspend fun getSshHomeDirectory(): String? = withContext(Dispatchers.IO) {
+        if (session?.isConnected != true) {
+            return@withContext null
+        }
+        val result = executeCommand("pwd")
+        if (result.success) {
+            result.output.trim()
+        } else {
+            null
+        }
+    }
+
     suspend fun executeCommand(command: String): CommandResult = withContext(Dispatchers.IO) {
         Napier.d("Executing SSH command: '$command'")
         var channel: ChannelExec? = null
