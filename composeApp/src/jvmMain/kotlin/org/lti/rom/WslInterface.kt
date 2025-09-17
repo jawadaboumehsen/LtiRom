@@ -48,51 +48,11 @@ fun WslInterface(viewModel: WslViewModel) {
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "WSL Interface",
-                style = MaterialTheme.typography.headlineMedium
-            )
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (isConnected) {
-                    Button(
-                        onClick = { viewModel.disconnect() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Disconnect")
-                    }
-                } else {
-                    Button(onClick = { showConnectionDialog = true }) {
-                        Text("Connect")
-                    }
-                }
-
-                Button(
-                    onClick = { viewModel.openFileBrowser() },
-                    enabled = isWslAvailable && !isLoading
-                ) {
-                    Text("Browse")
-                }
-
-                Button(
-                    onClick = { viewModel.checkWslAvailability() },
-                    enabled = !isLoading
-                ) {
-                    Text("Refresh")
-                }
-                IconButton(onClick = { viewModel.navigateTo(Screen.SETTINGS) }) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
-                }
-            }
-        }
+        Text(
+            text = "WSL Interface",
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
         
         // Status indicators
         Card(
@@ -140,6 +100,42 @@ fun WslInterface(viewModel: WslViewModel) {
                     color = MaterialTheme.colorScheme.primary
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (isConnected) {
+                        Button(
+                            onClick = { viewModel.disconnect() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Disconnect")
+                        }
+                    } else {
+                        Button(onClick = { showConnectionDialog = true }) {
+                            Text("Connect")
+                        }
+                    }
+
+                    Button(
+                        onClick = { viewModel.openFileBrowser() },
+                        enabled = isWslAvailable && !isLoading
+                    ) {
+                        Text("Browse")
+                    }
+
+                    Button(
+                        onClick = { viewModel.checkWslAvailability() },
+                        enabled = !isLoading
+                    ) {
+                        Text("Refresh")
+                    }
+                }
+
                 if (targetDevices.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     ExposedDropdownMenuBox(
@@ -181,12 +177,12 @@ fun WslInterface(viewModel: WslViewModel) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
                     text = "Execute Command",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.headlineSmall
                 )
                 
                 Row(
@@ -255,8 +251,8 @@ fun WslInterface(viewModel: WslViewModel) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -265,7 +261,7 @@ fun WslInterface(viewModel: WslViewModel) {
                 ) {
                     Text(
                         text = "Command Output",
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.headlineSmall
                     )
                     
                     if (commandOutput.isNotEmpty()) {
@@ -274,13 +270,6 @@ fun WslInterface(viewModel: WslViewModel) {
                         }
                     }
                 }
-                
-                // Debug: Show command output state
-                Text(
-                    text = "Debug: commandOutput length = ${commandOutput.length}, content = '$commandOutput'",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
                 
                 if (commandOutput.isEmpty()) {
                     Text(

@@ -10,25 +10,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import org.koin.mp.KoinPlatform
+import org.koin.compose.KoinApplication
+import org.koin.compose.koinInject
 import org.lti.rom.di.appModule
+import org.lti.rom.ui.theme.LtiRomTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
 fun App() {
-    MaterialTheme {
-        val wslViewModel: WslViewModel = KoinPlatform.getKoin().get()
-        val currentScreen by wslViewModel.currentScreen.collectAsState()
-        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    KoinApplication(application = {
+        modules(appModule)
+    }) {
+        LtiRomTheme {
+            val wslViewModel: WslViewModel = koinInject()
+            val currentScreen by wslViewModel.currentScreen.collectAsState()
+            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
 
             ModalNavigationDrawer(
                 drawerState = drawerState,
                 drawerContent = {
-                    ModalDrawerSheet {
-                        Text("LtiRom", modifier = Modifier.padding(16.dp))
-                        Divider()
+                ModalDrawerSheet(modifier = Modifier.padding(16.dp)) {
+                    Text("LtiRom", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.headlineMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
                         NavigationDrawerItem(
                             label = { Text(text = "WSL Interface") },
                             selected = currentScreen == Screen.MAIN,
@@ -59,12 +64,17 @@ fun App() {
                 Scaffold(
                     topBar = {
                         TopAppBar(
-                            title = { Text("LtiRom - WSL Desktop Client") },
+                            title = { Text("LtiRom", style = MaterialTheme.typography.headlineLarge) },
                             navigationIcon = {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                     Icon(Icons.Default.Menu, contentDescription = "Menu")
                                 }
-                            }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                                navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                            )
                         )
                     }
                 ) { paddingValues ->
@@ -78,6 +88,7 @@ fun App() {
                 }
             }
         }
+    }
 }
 
 @Composable
