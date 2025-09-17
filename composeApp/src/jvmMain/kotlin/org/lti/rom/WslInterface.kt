@@ -16,11 +16,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.rememberScrollbarAdapter
+import org.lti.rom.ui.components.customScrollbarStyle
 
-@OptIn(ExperimentalMaterial3Api::class)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WslInterface(viewModel: WslViewModel) {
     val isConnected by viewModel.isConnected.collectAsState()
@@ -41,13 +47,14 @@ fun WslInterface(viewModel: WslViewModel) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         Text(
             text = "WSL Interface",
             style = MaterialTheme.typography.headlineLarge,
@@ -107,32 +114,40 @@ fun WslInterface(viewModel: WslViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (isConnected) {
-                        Button(
-                            onClick = { viewModel.disconnect() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text("Disconnect")
+                        TooltipArea(tooltip = { Text("Disconnect from WSL") }) {
+                            Button(
+                                onClick = { viewModel.disconnect() },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Disconnect")
+                            }
                         }
                     } else {
-                        Button(onClick = { showConnectionDialog = true }) {
-                            Text("Connect")
+                        TooltipArea(tooltip = { Text("Connect to WSL distribution") }) {
+                            Button(onClick = { showConnectionDialog = true }) {
+                                Text("Connect")
+                            }
                         }
                     }
 
-                    Button(
-                        onClick = { viewModel.openFileBrowser() },
-                        enabled = isWslAvailable && !isLoading
-                    ) {
-                        Text("Browse")
+                    TooltipArea(tooltip = { Text("Browse WSL file system") }) {
+                        Button(
+                            onClick = { viewModel.openFileBrowser() },
+                            enabled = isWslAvailable && !isLoading
+                        ) {
+                            Text("Browse")
+                        }
                     }
 
-                    Button(
-                        onClick = { viewModel.checkWslAvailability() },
-                        enabled = !isLoading
-                    ) {
-                        Text("Refresh")
+                    TooltipArea(tooltip = { Text("Refresh WSL status and distributions") }) {
+                        Button(
+                            onClick = { viewModel.checkWslAvailability() },
+                            enabled = !isLoading
+                        ) {
+                            Text("Refresh")
+                        }
                     }
                 }
 
@@ -198,22 +213,24 @@ fun WslInterface(viewModel: WslViewModel) {
                         singleLine = true
                     )
                     
-                    Button(
-                        onClick = {
-                            if (commandInput.isNotBlank()) {
-                                viewModel.executeCommand(commandInput)
-                                commandInput = ""
+                    TooltipArea(tooltip = { Text("Execute the entered command in WSL") }) {
+                        Button(
+                            onClick = {
+                                if (commandInput.isNotBlank()) {
+                                    viewModel.executeCommand(commandInput)
+                                    commandInput = ""
+                                }
+                            },
+                            enabled = commandInput.isNotBlank() && !isLoading
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Execute")
                             }
-                        },
-                        enabled = commandInput.isNotBlank() && !isLoading
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text("Execute")
                         }
                     }
                 }
@@ -231,15 +248,17 @@ fun WslInterface(viewModel: WslViewModel) {
                         "df -h" to "Disk usage",
                         "ps aux" to "Running processes"
                     )) { (command, description) ->
-                        OutlinedButton(
-                            onClick = { 
-                                commandInput = command
-                                viewModel.executeCommand(command)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isLoading
-                        ) {
-                            Text("$command - $description")
+                        TooltipArea(tooltip = { Text("Run '$command' in WSL") }) {
+                            OutlinedButton(
+                                onClick = {
+                                    commandInput = command
+                                    viewModel.executeCommand(command)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isLoading
+                            ) {
+                                Text("$command - $description")
+                            }
                         }
                     }
                 }
@@ -265,8 +284,10 @@ fun WslInterface(viewModel: WslViewModel) {
                     )
                     
                     if (commandOutput.isNotEmpty()) {
-                        TextButton(onClick = { viewModel.clearOutput() }) {
-                            Text("Clear")
+                        TooltipArea(tooltip = { Text("Clear the command output") }) {
+                            TextButton(onClick = { viewModel.clearOutput() }) {
+                                Text("Clear")
+                            }
                         }
                     }
                 }
@@ -306,6 +327,22 @@ fun WslInterface(viewModel: WslViewModel) {
         }
     }
     
+    // Connection dialog
+    WslConnectionDialog(
+        isOpen = showConnectionDialog,
+        onDismiss = { showConnectionDialog = false },
+        onConnect = { connection ->
+            viewModel.connectToWsl(connection)
+        }
+    )
+
+        VerticalScrollbar(
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            adapter = rememberScrollbarAdapter(scrollState),
+            style = customScrollbarStyle()
+        )
+    }
+
     // Connection dialog
     WslConnectionDialog(
         isOpen = showConnectionDialog,

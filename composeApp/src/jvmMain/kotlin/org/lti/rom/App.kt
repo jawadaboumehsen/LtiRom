@@ -52,9 +52,9 @@ fun App() {
                         )
                         NavigationDrawerItem(
                             label = { Text(text = "About") },
-                            selected = false,
+                            selected = currentScreen == Screen.ABOUT,
                             onClick = {
-                                // TODO: Create an About screen
+                                wslViewModel.navigateTo(Screen.ABOUT)
                                 scope.launch { drawerState.close() }
                             }
                         )
@@ -83,6 +83,7 @@ fun App() {
                             Screen.SETUP -> SetupScreen(wslViewModel)
                             Screen.MAIN -> WslInterface(wslViewModel)
                             Screen.SETTINGS -> SettingsScreen(wslViewModel)
+                            Screen.ABOUT -> AboutContent()
                         }
                     }
                 }
@@ -106,8 +107,23 @@ fun AboutContent() {
         )
 
         Text(
+            text = "Version 1.0.0",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Text(
             text = "A Kotlin Multiplatform desktop application for connecting to and managing WSL (Windows Subsystem for Linux).",
             style = MaterialTheme.typography.bodyLarge
+        )
+
+        Text(
+            text = "Developed by: Jules",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Text(
+            text = "For more information, please visit the project's repository.",
+            style = MaterialTheme.typography.bodyMedium
         )
     }
 }
