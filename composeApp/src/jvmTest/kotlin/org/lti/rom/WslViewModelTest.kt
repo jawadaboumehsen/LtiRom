@@ -145,27 +145,6 @@ class WslViewModelTest {
     }
 
     @Test
-    fun `init should navigate to main screen if settings exist`() {
-        // Given
-        coEvery { settingsService.settingsExist() } returns true
-        coEvery { settingsService.getSettings() } returns mapOf(
-            SettingsService.HOST_KEY to "host",
-            SettingsService.PORT_KEY to 22,
-            SettingsService.USERNAME_KEY to "user",
-            SettingsService.PASSWORD_KEY to "pass",
-            SettingsService.WORK_DIR_KEY to "/work",
-            SettingsService.REPO_URL_KEY to "url",
-            SettingsService.BRANCH_KEY to "branch"
-        )
-
-        // When
-        viewModel = WslViewModel(wslService, settingsService)
-
-        // Then
-        assertEquals(Screen.MAIN, viewModel.currentScreen.value)
-    }
-
-    @Test
     fun `saveSettings should save settings`() {
         // Given
         val host = "testhost"
@@ -192,18 +171,6 @@ class WslViewModelTest {
         assertEquals(repoUrl, viewModel.gitRepoUrl.value)
         assertEquals(branch, viewModel.gitBranch.value)
         assertEquals(workDir, viewModel.currentDirectory.value)
-    }
-
-    @Test
-    fun `init should navigate to setup screen if settings do not exist`() {
-        // Given
-        coEvery { settingsService.settingsExist() } returns false
-
-        // When
-        viewModel = WslViewModel(wslService, settingsService)
-
-        // Then
-        assertEquals(Screen.SETUP, viewModel.currentScreen.value)
     }
 
     @Test

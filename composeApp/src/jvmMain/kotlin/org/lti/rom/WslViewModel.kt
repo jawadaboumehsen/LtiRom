@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class WslViewModel(
-    private val wslService: WslService = WslService(),
-    private val settingsService: SettingsService = SettingsService()
+    private val wslService: WslService,
+    private val settingsService: SettingsService
 ) : ViewModel() {
     
     private val _isConnected = MutableStateFlow(false)

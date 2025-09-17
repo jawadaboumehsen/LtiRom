@@ -23,6 +23,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.napier)
             implementation(libs.multiplatformSettingsNoArg)
+            implementation(libs.bundles.koin)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
