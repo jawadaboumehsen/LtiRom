@@ -24,9 +24,12 @@ kotlin {
             implementation(libs.napier)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
+            implementation(libs.multiplatform.settings.no.arg)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.mockk)
+            implementation(libs.kotlinx.coroutines.test)
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)

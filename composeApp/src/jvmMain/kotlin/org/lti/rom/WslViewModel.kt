@@ -7,7 +7,10 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class WslViewModel(private val wslService: WslService) : ViewModel() {
+class WslViewModel(
+    private val wslService: WslService,
+    private val settingsService: SettingsService
+) : ViewModel() {
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
     
@@ -28,9 +31,109 @@ class WslViewModel(private val wslService: WslService) : ViewModel() {
     
     private val _currentDirectory = MutableStateFlow("/home/username")
     val currentDirectory: StateFlow<String> = _currentDirectory.asStateFlow()
+
+    private val _gitRepoUrl = MutableStateFlow("")
+    val gitRepoUrl: StateFlow<String> = _gitRepoUrl.asStateFlow()
+
+    private val _gitBranch = MutableStateFlow("main")
+    val gitBranch: StateFlow<String> = _gitBranch.asStateFlow()
+
+    private val _host = MutableStateFlow("localhost")
+    val host: StateFlow<String> = _host.asStateFlow()
+
+    private val _port = MutableStateFlow("22")
+    val port: StateFlow<String> = _port.asStateFlow()
+
+    private val _username = MutableStateFlow("wsl")
+    val username: StateFlow<String> = _username.asStateFlow()
+
+    private val _password = MutableStateFlow("")
+    val password: StateFlow<String> = _password.asStateFlow()
+
+    private val _selectedTargetDevice = MutableStateFlow("")
+    val selectedTargetDevice: StateFlow<String> = _selectedTargetDevice.asStateFlow()
+
+    private val _currentScreen = MutableStateFlow(Screen.SETUP)
+    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+
+    fun navigateTo(screen: Screen) {
+        _currentScreen.value = screen
+    }
     
     init {
-        checkWslAvailability()
+        if (settingsService.settingsExist()) {
+            navigateTo(Screen.MAIN)
+            val settings = settingsService.getSettings()
+            _gitRepoUrl.value = settings[SettingsService.REPO_URL_KEY] as? String ?: ""
+            _gitBranch.value = settings[SettingsService.BRANCH_KEY] as? String ?: "main"
+            _currentDirectory.value = settings[SettingsService.WORK_DIR_KEY] as? String ?: "/"
+            _selectedTargetDevice.value = settings[SettingsService.SELECTED_TARGET_DEVICE_KEY] as? String ?: ""
+            _host.value = settings[SettingsService.HOST_KEY] as? String ?: "localhost"
+            _port.value = (settings[SettingsService.PORT_KEY] as? Int ?: 22).toString()
+            _username.value = settings[SettingsService.USERNAME_KEY] as? String ?: "wsl"
+            _password.value = settings[SettingsService.PASSWORD_KEY] as? String ?: ""
+
+            connectToWsl(
+                WslService.WslConnection(
+                    host = _host.value,
+                    port = _port.value.toIntOrNull() ?: 22,
+                    username = _username.value,
+                    password = _password.value
+                )
+            )
+        } else {
+            checkWslAvailability()
+        }
+    }
+
+    fun saveSettings(
+        host: String,
+        port: String,
+        username: String,
+        password: String,
+        workDir: String,
+        repoUrl: String,
+        branch: String,
+        selectedTargetDevice: String
+    ) {
+        settingsService.saveSettings(
+            host = host,
+            port = port.toIntOrNull() ?: 22,
+            username = username,
+            password = password,
+            workDir = workDir,
+            repoUrl = repoUrl,
+            branch = branch,
+            selectedTargetDevice = selectedTargetDevice
+        )
+    }
+
+    fun onGitRepoUrlChange(url: String) {
+        _gitRepoUrl.value = url
+    }
+
+    fun onGitBranchChange(branch: String) {
+        _gitBranch.value = branch
+    }
+
+    fun onHostChange(host: String) {
+        _host.value = host
+    }
+
+    fun onPortChange(port: String) {
+        _port.value = port
+    }
+
+    fun onUsernameChange(username: String) {
+        _username.value = username
+    }
+
+    fun onPasswordChange(password: String) {
+        _password.value = password
+    }
+
+    fun onSelectedTargetDeviceChange(device: String) {
+        _selectedTargetDevice.value = device
     }
     
     fun checkWslAvailability() {
@@ -185,5 +288,44 @@ class WslViewModel(private val wslService: WslService) : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         wslService.disconnect()
+    }
+
+    private val _fileBrowserState = MutableStateFlow(FileBrowserState())
+    val fileBrowserState: StateFlow<FileBrowserState> = _fileBrowserState.asStateFlow()
+
+    fun openFileBrowser() {
+        _fileBrowserState.value = _fileBrowserState.value.copy(isOpen = true, currentPath = _currentDirectory.value)
+        loadFiles(_currentDirectory.value)
+    }
+
+    fun closeFileBrowser() {
+        _fileBrowserState.value = _fileBrowserState.value.copy(isOpen = false)
+    }
+
+    fun onFolderSelected(path: String) {
+        _currentDirectory.value = path
+        closeFileBrowser()
+    }
+
+    fun navigateToFile(path: String) {
+        loadFiles(path)
+    }
+
+    private fun loadFiles(path: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val files = wslService.listFiles(path)
+                _fileBrowserState.value = _fileBrowserState.value.copy(
+                    currentPath = path,
+                    files = files
+                )
+            } catch (e: Exception) {
+                Napier.e("Error loading files for path: $path", throwable = e)
+                _errorMessage.value = "Error loading files: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 }

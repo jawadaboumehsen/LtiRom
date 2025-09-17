@@ -29,7 +29,6 @@ fun WslInterface(viewModel: WslViewModel) {
         Napier.d("UI received commandOutput: '$commandOutput' (length: ${commandOutput.length})")
     }
 
-    var showConnectionDialog by remember { mutableStateOf(false) }
     var commandInput by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
@@ -60,10 +59,6 @@ fun WslInterface(viewModel: WslViewModel) {
                         )
                     ) {
                         Text("Disconnect")
-                    }
-                } else {
-                    Button(onClick = { showConnectionDialog = true }) {
-                        Text("Connect")
                     }
                 }
 
@@ -291,12 +286,4 @@ fun WslInterface(viewModel: WslViewModel) {
         }
     }
     
-    // Connection dialog
-    WslConnectionDialog(
-        isOpen = showConnectionDialog,
-        onDismiss = { showConnectionDialog = false },
-        onConnect = { connection ->
-            viewModel.connectToWsl(connection)
-        }
-    )
 }

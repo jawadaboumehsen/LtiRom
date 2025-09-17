@@ -401,4 +401,23 @@ class WslService {
             CommandResult("", "WSL test error: ${e.message}", -1, false)
         }
     }
+
+    suspend fun listFiles(path: String): List<WslFile> {
+        val command = "ls -la $path"
+        val result = executeWslCommand(command)
+        if (result.success) {
+            return result.output.lines()
+                .filter { it.isNotBlank() }
+                .mapNotNull { line ->
+                    val parts = line.split("\\s+".toRegex(), 9)
+                    if (parts.size < 9) return@mapNotNull null
+                    val permissions = parts[0]
+                    val isDirectory = permissions.startsWith("d")
+                    val name = parts[8]
+                    if (name == "." || name == "..") return@mapNotNull null
+                    WslFile(name, "$path/$name", isDirectory)
+                }
+        }
+        return emptyList()
+    }
 }
