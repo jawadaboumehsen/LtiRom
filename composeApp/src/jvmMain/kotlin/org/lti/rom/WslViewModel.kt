@@ -7,9 +7,7 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class WslViewModel : ViewModel() {
-    private val wslService = WslService()
-    
+class WslViewModel(private val wslService: WslService) : ViewModel() {
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
     

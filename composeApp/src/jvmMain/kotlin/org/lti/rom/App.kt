@@ -7,46 +7,53 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.koin.compose.KoinApplication
+import org.koin.compose.koinInject
+import org.lti.rom.di.appModule
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
 fun App() {
-    MaterialTheme {
-        var currentTab by remember { mutableStateOf(0) }
-        val wslViewModel = remember { WslViewModel() }
+    KoinApplication(application = {
+        modules(appModule)
+    }) {
+        MaterialTheme {
+            var currentTab by remember { mutableStateOf(0) }
+            val wslViewModel: WslViewModel = koinInject()
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            // Top App Bar
-            TopAppBar(
-                title = { Text("LtiRom - WSL Desktop Client") }
-            )
-
-            // Tab Row
-            TabRow(selectedTabIndex = currentTab) {
-                Tab(
-                    selected = currentTab == 0,
-                    onClick = { currentTab = 0 },
-                    text = { Text("WSL Interface") }
-                )
-                Tab(
-                    selected = currentTab == 1,
-                    onClick = { currentTab = 1 },
-                    text = { Text("About") }
-                )
-            }
-
-            // Tab Content
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
-                when (currentTab) {
-                    0 -> WslInterface(wslViewModel)
-                    1 -> AboutContent()
+                // Top App Bar
+                TopAppBar(
+                    title = { Text("LtiRom - WSL Desktop Client") }
+                )
+
+                // Tab Row
+                TabRow(selectedTabIndex = currentTab) {
+                    Tab(
+                        selected = currentTab == 0,
+                        onClick = { currentTab = 0 },
+                        text = { Text("WSL Interface") }
+                    )
+                    Tab(
+                        selected = currentTab == 1,
+                        onClick = { currentTab = 1 },
+                        text = { Text("About") }
+                    )
+                }
+
+                // Tab Content
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    when (currentTab) {
+                        0 -> WslInterface(wslViewModel)
+                        1 -> AboutContent()
+                    }
                 }
             }
         }
