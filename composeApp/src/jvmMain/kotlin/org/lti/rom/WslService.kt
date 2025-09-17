@@ -59,18 +59,6 @@ class WslService {
         }
     }
 
-    suspend fun getSshHomeDirectory(): String? = withContext(Dispatchers.IO) {
-        if (session?.isConnected != true) {
-            return@withContext null
-        }
-        val result = executeCommand("pwd")
-        if (result.success) {
-            result.output.trim()
-        } else {
-            null
-        }
-    }
-
     suspend fun executeCommand(command: String): CommandResult = withContext(Dispatchers.IO) {
         Napier.d("Executing SSH command: '$command'")
         var channel: ChannelExec? = null
@@ -157,10 +145,10 @@ class WslService {
                     Napier.d("Output: '$output'")
                     
                     if (exitCode == 0) {
-                        Napier.d("✅ Command successful!")
+                        Napier.d("Command successful!")
                         return@withContext CommandResult(output, "", exitCode, true)
                     } else {
-                        Napier.d("❌ Command failed with exit code: $exitCode")
+                        Napier.d("Command failed with exit code: $exitCode")
                         // Continue to next approach
                     }
                 } catch (e: Exception) {
@@ -177,43 +165,6 @@ class WslService {
             val errorMsg = "WSL command execution failed: ${e.message}"
             Napier.e(errorMsg, throwable = e)
             CommandResult("", errorMsg, -1, false)
-        }
-    }
-
-    suspend fun listFiles(path: String): List<WslFile> = withContext(Dispatchers.IO) {
-        val command = "ls -la $path"
-        val result = executeWslCommand(command)
-
-        if (result.success) {
-            result.output.lines()
-                .mapNotNull { line ->
-                    // Skip empty lines and the "total" line
-                    if (line.isBlank() || line.startsWith("total")) {
-                        return@mapNotNull null
-                    }
-
-                    val parts = line.split("\\s+".toRegex())
-                    if (parts.size < 9) {
-                        return@mapNotNull null
-                    }
-
-                    val permissions = parts[0]
-                    val isDirectory = permissions.startsWith("d")
-                    val name = parts.last()
-
-                    // Skip "." and ".." entries
-                    if (name == "." || name == "..") {
-                        return@mapNotNull null
-                    }
-
-                    val fullPath = if (path.endsWith("/")) "$path$name" else "$path/$name"
-
-                    WslFile(name = name, path = fullPath, isDirectory = isDirectory)
-                }
-        } else {
-            // Handle error case
-            Napier.e("Failed to list files for path: $path, error: ${result.error}")
-            emptyList()
         }
     }
     
@@ -249,7 +200,7 @@ class WslService {
                 }
             }
             
-            Napier.d("Could not list WSL distributions")
+            Napier.e("Could not list WSL distributions")
             emptyList()
         } catch (e: Exception) {
             Napier.e("Exception in listWslDistributions", throwable = e)
@@ -276,10 +227,10 @@ class WslService {
                     Napier.d("WSL version check exit code: $exitCode")
                     
                     if (exitCode == 0) {
-                        Napier.d("✅ WSL is available via: $wslCmd")
+                        Napier.d("WSL is available via: $wslCmd")
                         return@withContext true
                     } else {
-                        Napier.d("❌ WSL command '$wslCmd' failed with exit code: $exitCode")
+                        Napier.d("WSL command '$wslCmd' failed with exit code: $exitCode")
                     }
                 } catch (e: Exception) {
                     Napier.e("Exception testing WSL command '$wslCmd'", throwable = e)
@@ -288,7 +239,7 @@ class WslService {
                 }
             }
             
-            Napier.d("WSL is not available - all commands failed")
+            Napier.e("WSL is not available - all commands failed")
             false
         } catch (e: Exception) {
             Napier.e("Outer exception in isWslAvailable", throwable = e)
@@ -438,53 +389,16 @@ class WslService {
                 Napier.d("Test command output: '${result.output}'")
                 
                 if (result.success) {
-                    Napier.d("✅ WSL connection test successful with command: $testCmd")
+                    Napier.d("WSL connection test successful with command: $testCmd")
                     return@withContext CommandResult("WSL connection test successful with: $testCmd\nOutput: ${result.output}", "", 0, true)
                 }
             }
             
-            Napier.d("❌ All test commands failed")
+            Napier.e("All test commands failed")
             CommandResult("", "WSL test failed: All test commands failed", -1, false)
         } catch (e: Exception) {
             Napier.e("Exception in testWslConnection", throwable = e)
             CommandResult("", "WSL test error: ${e.message}", -1, false)
-        }
-    }
-
-    suspend fun checkGitRepository(path: String): Boolean = withContext(Dispatchers.IO) {
-        val command = "cd $path && git rev-parse --is-inside-work-tree"
-        val result = executeWslCommand(command)
-        return@withContext result.success && result.output.trim() == "true"
-    }
-
-    suspend fun checkSubmodules(path: String): Boolean = withContext(Dispatchers.IO) {
-        val command = "cd $path && git submodule status"
-        val result = executeWslCommand(command)
-        // If the command fails, there are no submodules or not a git repo.
-        // If it succeeds, we check if the output contains lines that start with '-'
-        // which indicates an uninitialized submodule.
-        return@withContext result.success && !result.output.lines().any { it.trim().startsWith("-") }
-    }
-
-    suspend fun cloneRepository(url: String, branch: String, path: String): CommandResult = withContext(Dispatchers.IO) {
-        val command = "git clone --recurse-submodules -b $branch $url $path"
-        return@withContext executeWslCommand(command)
-    }
-
-    suspend fun initializeSubmodules(path: String): CommandResult = withContext(Dispatchers.IO) {
-        val command = "cd $path && git submodule update --init --recursive"
-        return@withContext executeWslCommand(command)
-    }
-
-    suspend fun listTargetDevices(path: String): List<String> = withContext(Dispatchers.IO) {
-        val command = "ls -d $path/target/*/ | xargs -n 1 basename"
-        val result = executeWslCommand(command)
-
-        if (result.success) {
-            result.output.lines().filter { it.isNotBlank() }
-        } else {
-            Napier.e("Failed to list target devices for path: $path, error: ${result.error}")
-            emptyList()
         }
     }
 }

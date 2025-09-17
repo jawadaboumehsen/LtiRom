@@ -1,91 +1,52 @@
 package org.lti.rom
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import org.koin.compose.KoinApplication
-import org.koin.compose.koinInject
-import org.lti.rom.di.appModule
-import org.lti.rom.ui.theme.LtiRomTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
 fun App() {
-    KoinApplication(application = {
-        modules(appModule)
-    }) {
-        LtiRomTheme {
-            val wslViewModel: WslViewModel = koinInject()
-            val currentScreen by wslViewModel.currentScreen.collectAsState()
-            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-            val scope = rememberCoroutineScope()
+    MaterialTheme {
+        var currentTab by remember { mutableStateOf(0) }
+        val wslViewModel = remember { WslViewModel() }
 
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = {
-                ModalDrawerSheet(modifier = Modifier.padding(16.dp)) {
-                    Text("LtiRom", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.headlineMedium)
-                    Spacer(modifier = Modifier.height(16.dp))
-                        NavigationDrawerItem(
-                            label = { Text(text = "WSL Interface") },
-                            selected = currentScreen == Screen.MAIN,
-                            onClick = {
-                                wslViewModel.navigateTo(Screen.MAIN)
-                                scope.launch { drawerState.close() }
-                            }
-                        )
-                        NavigationDrawerItem(
-                            label = { Text(text = "Settings") },
-                            selected = currentScreen == Screen.SETTINGS,
-                            onClick = {
-                                wslViewModel.navigateTo(Screen.SETTINGS)
-                                scope.launch { drawerState.close() }
-                            }
-                        )
-                        NavigationDrawerItem(
-                            label = { Text(text = "About") },
-                            selected = currentScreen == Screen.ABOUT,
-                            onClick = {
-                                wslViewModel.navigateTo(Screen.ABOUT)
-                                scope.launch { drawerState.close() }
-                            }
-                        )
-                    }
-                }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            // Top App Bar
+            TopAppBar(
+                title = { Text("LtiRom - WSL Desktop Client") }
+            )
+
+            // Tab Row
+            TabRow(selectedTabIndex = currentTab) {
+                Tab(
+                    selected = currentTab == 0,
+                    onClick = { currentTab = 0 },
+                    text = { Text("WSL Interface") }
+                )
+                Tab(
+                    selected = currentTab == 1,
+                    onClick = { currentTab = 1 },
+                    text = { Text("About") }
+                )
+            }
+
+            // Tab Content
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
             ) {
-                Scaffold(
-                    topBar = {
-                        TopAppBar(
-                            title = { Text("LtiRom", style = MaterialTheme.typography.headlineLarge) },
-                            navigationIcon = {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "Menu")
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                                navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        )
-                    }
-                ) { paddingValues ->
-                    Box(modifier = Modifier.padding(paddingValues)) {
-                        when (currentScreen) {
-                            Screen.SETUP -> SetupScreen(wslViewModel)
-                            Screen.MAIN -> WslInterface(wslViewModel)
-                            Screen.SETTINGS -> SettingsScreen(wslViewModel)
-                            Screen.ABOUT -> AboutContent()
-                        }
-                    }
+                when (currentTab) {
+                    0 -> WslInterface(wslViewModel)
+                    1 -> AboutContent()
                 }
             }
         }
@@ -107,23 +68,61 @@ fun AboutContent() {
         )
 
         Text(
-            text = "Version 1.0.0",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Text(
             text = "A Kotlin Multiplatform desktop application for connecting to and managing WSL (Windows Subsystem for Linux).",
             style = MaterialTheme.typography.bodyLarge
         )
 
-        Text(
-            text = "Developed by: Jules",
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Features:",
+                    style = MaterialTheme.typography.titleMedium
+                )
 
+                val features = listOf(
+                    "Connect to WSL via SSH",
+                    "Execute commands directly",
+                    "View command output in real-time",
+                    "Quick access to common commands",
+                    "List available WSL distributions",
+                    "Modern Material 3 UI"
+                )
+
+                features.forEach { feature ->
+                    Text("• $feature")
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Getting Started:",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text("1. Ensure WSL is installed and running on your Windows system")
+                Text("2. Click 'Connect' to establish a connection to WSL")
+                Text("3. Use the command input to execute Linux commands")
+                Text("4. View results in the output panel below")
+            }
+        }
+
+        val greeting = remember { Greeting().greet() }
         Text(
-            text = "For more information, please visit the project's repository.",
-            style = MaterialTheme.typography.bodyMedium
+            text = "Built with: $greeting",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

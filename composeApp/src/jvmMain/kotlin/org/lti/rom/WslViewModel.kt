@@ -7,10 +7,8 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class WslViewModel(
-    private val wslService: WslService,
-    private val settingsService: SettingsService
-) : ViewModel() {
+class WslViewModel : ViewModel() {
+    private val wslService = WslService()
     
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
@@ -30,161 +28,11 @@ class WslViewModel(
     private val _errorMessage = MutableStateFlow("")
     val errorMessage: StateFlow<String> = _errorMessage.asStateFlow()
     
-    private val _currentDirectory = MutableStateFlow("/")
+    private val _currentDirectory = MutableStateFlow("/home/username")
     val currentDirectory: StateFlow<String> = _currentDirectory.asStateFlow()
-
-    private val _gitRepoUrl = MutableStateFlow("")
-    val gitRepoUrl: StateFlow<String> = _gitRepoUrl.asStateFlow()
-
-    private val _gitBranch = MutableStateFlow("main")
-    val gitBranch: StateFlow<String> = _gitBranch.asStateFlow()
-
-    private val _host = MutableStateFlow("localhost")
-    val host: StateFlow<String> = _host.asStateFlow()
-
-    private val _port = MutableStateFlow("22")
-    val port: StateFlow<String> = _port.asStateFlow()
-
-    private val _username = MutableStateFlow("wsl")
-    val username: StateFlow<String> = _username.asStateFlow()
-
-    private val _password = MutableStateFlow("")
-    val password: StateFlow<String> = _password.asStateFlow()
-
-    private val _selectedTargetDevice = MutableStateFlow("")
-    val selectedTargetDevice: StateFlow<String> = _selectedTargetDevice.asStateFlow()
-
-    private val _targetDevices = MutableStateFlow<List<String>>(emptyList())
-    val targetDevices: StateFlow<List<String>> = _targetDevices.asStateFlow()
-
-    private val _repoStatus = MutableStateFlow("")
-    val repoStatus: StateFlow<String> = _repoStatus.asStateFlow()
-
-    private val _currentScreen = MutableStateFlow(Screen.SETUP)
-    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
-
-    fun navigateTo(screen: Screen) {
-        _currentScreen.value = screen
-    }
-
-    fun onGitRepoUrlChange(url: String) {
-        _gitRepoUrl.value = url
-    }
-
-    fun onGitBranchChange(branch: String) {
-        _gitBranch.value = branch
-    }
-
-    fun onHostChange(host: String) {
-        _host.value = host
-    }
-
-    fun onPortChange(port: String) {
-        _port.value = port
-    }
-
-    fun onUsernameChange(username: String) {
-        _username.value = username
-    }
-
-    fun onPasswordChange(password: String) {
-        _password.value = password
-    }
-
-    fun onSelectedTargetDeviceChange(device: String) {
-        _selectedTargetDevice.value = device
-    }
-
-    fun loadTargetDevices() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val devices = wslService.listTargetDevices(_currentDirectory.value)
-                _targetDevices.value = devices
-            } catch (e: Exception) {
-                Napier.e("Error loading target devices", throwable = e)
-                _errorMessage.value = "Error loading target devices: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun checkAndCloneRepository() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _repoStatus.value = "Checking repository..."
-            try {
-                val isRepo = wslService.checkGitRepository(_currentDirectory.value)
-                if (isRepo) {
-                    _repoStatus.value = "Repository found. Checking submodules..."
-                    val submodulesOk = wslService.checkSubmodules(_currentDirectory.value)
-                    if (submodulesOk) {
-                        _repoStatus.value = "Repository is ready."
-                    } else {
-                        _repoStatus.value = "Submodules not initialized. Initializing..."
-                        val result = wslService.initializeSubmodules(_currentDirectory.value)
-                        if (result.success) {
-                            _repoStatus.value = "Submodules initialized successfully."
-                        } else {
-                            _repoStatus.value = "Failed to initialize submodules: ${result.error}"
-                        }
-                    }
-                } else {
-                    _repoStatus.value = "No repository found. Cloning..."
-                    val result = wslService.cloneRepository(
-                        _gitRepoUrl.value,
-                        _gitBranch.value,
-                        _currentDirectory.value
-                    )
-                    if (result.success) {
-                        _repoStatus.value = "Repository cloned successfully."
-                    } else {
-                        _repoStatus.value = "Failed to clone repository: ${result.error}"
-                    }
-                }
-            } catch (e: Exception) {
-                Napier.e("Error checking/cloning repository", throwable = e)
-                _repoStatus.value = "Error: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
     
     init {
-        if (settingsService.settingsExist()) {
-            val settings = settingsService.getSettings()
-            _gitRepoUrl.value = settings[SettingsService.REPO_URL_KEY] as? String ?: ""
-            _gitBranch.value = settings[SettingsService.BRANCH_KEY] as? String ?: "main"
-            _currentDirectory.value = settings[SettingsService.WORK_DIR_KEY] as? String ?: "/"
-            _selectedTargetDevice.value = settings[SettingsService.SELECTED_TARGET_DEVICE_KEY] as? String ?: ""
-
-            val connection = WslService.WslConnection(
-                host = settings[SettingsService.HOST_KEY] as? String ?: "localhost",
-                port = settings[SettingsService.PORT_KEY] as? Int ?: 22,
-                username = settings[SettingsService.USERNAME_KEY] as? String ?: "wsl",
-                password = settings[SettingsService.PASSWORD_KEY] as? String ?: ""
-            )
-            connectToWsl(connection)
-            navigateTo(Screen.MAIN)
-            loadTargetDevices()
-        } else {
-            checkWslAvailability()
-        }
-    }
-
-    fun saveSettings() {
-        settingsService.saveSettings(
-            host = _host.value,
-            port = _port.value.toIntOrNull() ?: 22,
-            username = _username.value,
-            password = _password.value,
-            workDir = _currentDirectory.value,
-            repoUrl = _gitRepoUrl.value,
-            branch = _gitBranch.value,
-            selectedTargetDevice = _selectedTargetDevice.value
-        )
+        checkWslAvailability()
     }
     
     fun checkWslAvailability() {
@@ -209,16 +57,16 @@ class WslViewModel(
                     Napier.d("Connection test result - Success: ${testResult.success}, Error: ${testResult.error}")
                     
                     if (testResult.success) {
-                        Napier.d("✅ Connection test successful, loading distributions...")
+                        Napier.d("Connection test successful, loading distributions...")
                         loadWslDistributions()
                         updateCurrentDirectory()
                         _errorMessage.value = ""
                     } else {
-                        Napier.d("❌ Connection test failed: ${testResult.error}")
+                        Napier.e("Connection test failed: ${testResult.error}")
                         _errorMessage.value = "WSL is available but connection test failed: ${testResult.error}"
                     }
                 } else {
-                    Napier.d("❌ WSL is not available")
+                    Napier.e("WSL is not available")
                     _errorMessage.value = "WSL is not available on this system. Please install WSL or ensure it's in your PATH."
                 }
             } catch (e: Exception) {
@@ -263,12 +111,7 @@ class WslViewModel(
                 val connected = wslService.connect(connection)
                 _isConnected.value = connected
                 
-                if (connected) {
-                    val homeDir = wslService.getSshHomeDirectory()
-                    if (homeDir != null) {
-                        _currentDirectory.value = homeDir
-                    }
-                } else {
+                if (!connected) {
                     _errorMessage.value = "Failed to connect to WSL"
                 }
             } catch (e: Exception) {
@@ -313,10 +156,10 @@ class WslViewModel(
                 Napier.d("commandOutput state updated, current value: '${_commandOutput.value}'")
 
                 if (!result.success) {
-                    Napier.d("❌ Command failed with exit code ${result.exitCode}")
+                    Napier.e("Command failed with exit code ${result.exitCode}")
                     _errorMessage.value = "Command failed with exit code ${result.exitCode}"
                 } else {
-                    Napier.d("✅ Command executed successfully")
+                    Napier.d("Command executed successfully")
                 }
             } catch (e: Exception) {
                 Napier.e("Exception in executeCommand", throwable = e)
@@ -344,45 +187,5 @@ class WslViewModel(
     override fun onCleared() {
         super.onCleared()
         wslService.disconnect()
-    }
-
-    private val _fileBrowserState = MutableStateFlow(FileBrowserState())
-    val fileBrowserState: StateFlow<FileBrowserState> = _fileBrowserState.asStateFlow()
-
-    fun openFileBrowser() {
-        _fileBrowserState.value = _fileBrowserState.value.copy(isOpen = true, currentPath = _currentDirectory.value)
-        loadFiles(_currentDirectory.value)
-    }
-
-    fun closeFileBrowser() {
-        _fileBrowserState.value = _fileBrowserState.value.copy(isOpen = false)
-    }
-
-    fun onFolderSelected(path: String) {
-        _currentDirectory.value = path
-        closeFileBrowser()
-        loadTargetDevices()
-    }
-
-    fun navigateToFile(path: String) {
-        loadFiles(path)
-    }
-
-    private fun loadFiles(path: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val files = wslService.listFiles(path)
-                _fileBrowserState.value = _fileBrowserState.value.copy(
-                    currentPath = path,
-                    files = files
-                )
-            } catch (e: Exception) {
-                Napier.e("Error loading files for path: $path", throwable = e)
-                _errorMessage.value = "Error loading files: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
     }
 }
